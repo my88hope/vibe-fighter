@@ -47,8 +47,11 @@ html,
 body,
 #app {
   margin: 0;
+  padding: 0;
+  width: 100%;
   height: 100%;
   min-height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -232,6 +235,8 @@ input {
 .game-root {
   position: relative;
   flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
   min-height: 0;
   display: flex;
   align-items: center;
@@ -250,6 +255,7 @@ input {
 
 .game-root canvas {
   display: block;
+  margin: 0 !important;
   max-width: 100%;
   max-height: 100%;
   image-rendering: pixelated;
@@ -308,13 +314,23 @@ input {
 }
 
 .app-shell.is-play-mode .app-shell__workspace {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
 }
 
 .app-shell.is-play-mode .game-host {
   position: fixed;
   inset: 0;
   z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .app-shell.is-play-mode .game-host__bezel-label {
@@ -331,6 +347,7 @@ input {
 .app-shell.is-play-mode .game-root {
   width: 100%;
   height: 100%;
+  min-width: 0;
   min-height: 0;
   border: none;
   box-shadow: none;
@@ -341,29 +358,51 @@ input {
 }
 
 .app-shell--game-only {
-  padding: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   gap: 0;
-  grid-template-rows: minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   background: var(--bg-deep);
+  overflow: hidden;
 }
 
 .app-shell--game-only .app-shell__workspace {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
   height: 100%;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
 }
 
 .app-shell--game-only .game-host {
-  position: fixed;
-  inset: 0;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  position: relative;
+  inset: auto;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .app-shell--game-only .game-root {
   width: 100%;
   height: 100%;
+  min-width: 0;
   min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   box-shadow: none;
 }
@@ -982,21 +1021,21 @@ body.is-number-dragging * {
 /* ────────────────────────  Responsive  ─────────────────────────── */
 
 @media (max-width: 960px) {
-  .app-shell {
+  .app-shell:not(.app-shell--game-only):not(.is-play-mode) {
     padding: 12px;
     overflow: auto;
   }
 
-  .app-shell__header {
+  .app-shell:not(.app-shell--game-only):not(.is-play-mode) .app-shell__header {
     grid-template-columns: 1fr;
   }
 
-  .app-shell__header-action,
-  .app-shell__status {
+  .app-shell:not(.app-shell--game-only):not(.is-play-mode) .app-shell__header-action,
+  .app-shell:not(.app-shell--game-only):not(.is-play-mode) .app-shell__status {
     justify-self: start;
   }
 
-  .app-shell__workspace {
+  .app-shell:not(.app-shell--game-only):not(.is-play-mode) .app-shell__workspace {
     grid-template-columns: minmax(0, 1fr);
   }
 }

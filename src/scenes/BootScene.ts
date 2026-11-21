@@ -76,13 +76,16 @@ export class BootScene extends BaseScene {
     const isPortrait = cam.height > cam.width;
     cam.setBackgroundColor(0x020617);
 
-    // Subtle arcade grid backdrop
+    // Subtle arcade grid backdrop centered symmetrically
     const grid = this.add.graphics();
     grid.lineStyle(1, 0x1e293b, 0.35);
-    for (let x = 0; x < cam.width; x += 48) {
+    const gridStep = 48;
+    const gridOffsetX = (cam.width % gridStep) / 2;
+    const gridOffsetY = (cam.height % gridStep) / 2;
+    for (let x = gridOffsetX; x <= cam.width; x += gridStep) {
       grid.lineBetween(x, 0, x, cam.height);
     }
-    for (let y = 0; y < cam.height; y += 48) {
+    for (let y = gridOffsetY; y <= cam.height; y += gridStep) {
       grid.lineBetween(0, y, cam.width, y);
     }
 

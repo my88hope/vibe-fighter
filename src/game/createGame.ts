@@ -30,7 +30,7 @@ export function createGame(parent: HTMLElement, profile: GameProfile): Phaser.Ga
     },
     scale: {
       mode: Phaser.Scale.FIT,
-      autoCenter: Phaser.Scale.CENTER_BOTH
+      autoCenter: Phaser.Scale.NO_CENTER
     },
     input: {
       activePointers: 4

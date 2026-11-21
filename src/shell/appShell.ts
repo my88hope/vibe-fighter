@@ -304,6 +304,14 @@ export function createApp(root: HTMLElement): void {
     }, 2200);
   };
 
+  const refreshGameScale = (): void => {
+    if (!game) {
+      return;
+    }
+
+    game.scale.refresh();
+  };
+
   const enterPlayMode = (): void => {
     if (!isDebugShell || !playToggle || appShell.classList.contains('is-play-mode')) {
       return;
@@ -312,6 +320,7 @@ export function createApp(root: HTMLElement): void {
     appShell.classList.add('is-play-mode');
     playToggle.textContent = 'Playing';
     showPlayToast();
+    window.requestAnimationFrame(refreshGameScale);
   };
 
   const exitPlayMode = (): void => {
@@ -327,6 +336,8 @@ export function createApp(root: HTMLElement): void {
       window.clearTimeout(playToastTimeout);
       playToastTimeout = null;
     }
+
+    window.requestAnimationFrame(refreshGameScale);
   };
 
   const remountGame = (profile: GameProfile): void => {
@@ -1183,6 +1194,7 @@ export function createApp(root: HTMLElement): void {
     collapseButton.addEventListener('click', () => {
       debugPanel.classList.toggle('is-collapsed');
       collapseButton.textContent = debugPanel.classList.contains('is-collapsed') ? 'Expand' : 'Collapse';
+      window.requestAnimationFrame(refreshGameScale);
     });
     playToggle.addEventListener('click', () => {
       if (appShell.classList.contains('is-play-mode')) {
@@ -1508,6 +1520,13 @@ export function createApp(root: HTMLElement): void {
       }
     }, 180);
   });
+
+  if (typeof ResizeObserver !== 'undefined') {
+    const gameRootResizeObserver = new ResizeObserver(() => {
+      refreshGameScale();
+    });
+    gameRootResizeObserver.observe(gameRoot);
+  }
 
   remountGame(currentProfile);
 }
