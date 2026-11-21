@@ -38,28 +38,38 @@ export class SettingsScene extends BaseScene {
     this.cameras.main.setBackgroundColor(0x020617);
     this.createHeading('Settings', '');
 
-    const centerX = this.cameras.main.centerX;
     const camera = this.cameras.main;
-    const panel = this.add.image(centerX, camera.centerY, 'ui-panel');
-    panel.setDisplaySize(560, 460);
+    const { centerX, centerY, width, height } = camera;
+    const isPortrait = height > width;
+    const panelWidth = Math.min(560, width - 48);
+    const panelHeight = Math.min(500, height - (isPortrait ? 220 : 168));
+    const panelCenterY = centerY + 12;
+    const panelTop = panelCenterY - panelHeight / 2;
+
+    const panel = this.add.image(centerX, panelCenterY, 'ui-panel');
+    panel.setDisplaySize(panelWidth, panelHeight);
 
     const valueStyle = {
       color: '#cbd5e1',
       fontFamily: 'monospace',
-      fontSize: '24px'
+      fontSize: isPortrait ? '22px' : '23px'
     };
 
-    this.sfxValue = this.add.text(centerX, 210, '', valueStyle).setOrigin(0.5);
-    this.musicValue = this.add.text(centerX, 250, '', valueStyle).setOrigin(0.5);
-    this.muteValue = this.add.text(centerX, 290, '', valueStyle).setOrigin(0.5);
+    this.sfxValue = this.add.text(centerX, panelTop + 44, '', valueStyle).setOrigin(0.5);
+    this.musicValue = this.add.text(centerX, panelTop + 76, '', valueStyle).setOrigin(0.5);
+    this.muteValue = this.add.text(centerX, panelTop + 108, '', valueStyle).setOrigin(0.5);
 
-    const buttonY = [305, 365, 425, 485, 545];
-    const wideButtonWidth = 320;
-    const halfButtonWidth = 150;
-    const buttonHeight = 58;
+    const wideButtonWidth = Math.min(340, panelWidth - 64);
+    const halfGap = 16;
+    const halfButtonWidth = Math.floor((wideButtonWidth - halfGap) / 2);
+    const halfOffset = (halfButtonWidth + halfGap) / 2;
+    const buttonHeight = Math.min(56, Math.floor((panelHeight - 178) / 5));
+    const rowStep = buttonHeight + 8;
+    const firstButtonY = panelTop + 168;
+    const buttonY = Array.from({ length: 5 }, (_, index) => firstButtonY + index * rowStep);
 
     this.sfxDownButton = createTextButton(this, {
-      x: centerX - 85,
+      x: centerX - halfOffset,
       y: buttonY[0],
       width: halfButtonWidth,
       height: buttonHeight,
@@ -69,7 +79,7 @@ export class SettingsScene extends BaseScene {
     });
 
     this.sfxUpButton = createTextButton(this, {
-      x: centerX + 85,
+      x: centerX + halfOffset,
       y: buttonY[0],
       width: halfButtonWidth,
       height: buttonHeight,
@@ -79,7 +89,7 @@ export class SettingsScene extends BaseScene {
     });
 
     this.musicDownButton = createTextButton(this, {
-      x: centerX - 85,
+      x: centerX - halfOffset,
       y: buttonY[1],
       width: halfButtonWidth,
       height: buttonHeight,
@@ -89,7 +99,7 @@ export class SettingsScene extends BaseScene {
     });
 
     this.musicUpButton = createTextButton(this, {
-      x: centerX + 85,
+      x: centerX + halfOffset,
       y: buttonY[1],
       width: halfButtonWidth,
       height: buttonHeight,

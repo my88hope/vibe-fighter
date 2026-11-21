@@ -31,10 +31,45 @@ export class MainMenuScene extends BaseScene {
     this.options = [];
 
     this.markActiveScene(SCENE_KEYS.MainMenu);
-    this.cameras.main.setBackgroundColor(0x020617);
-    this.createHeading(GAME_TITLE, GAME_TAGLINE);
+    const camera = this.cameras.main;
+    const isPortrait = camera.height > camera.width;
+    camera.setBackgroundColor(0x020617);
 
-    this.renderMenu();
+    const buttonHeight = isPortrait ? 66 : 58;
+    const buttonGap = isPortrait ? 22 : 18;
+    const taglineHeight = GAME_TAGLINE ? (isPortrait ? 44 : 40) : 0;
+    const titleToButtonsGap = isPortrait ? 62 : 54;
+    const totalBlockHeight = 64 + taglineHeight + titleToButtonsGap + buttonHeight * 2 + buttonGap;
+    const blockTopY = Math.round(camera.centerY - totalBlockHeight / 2 - 12);
+
+    const titleY = blockTopY + 32;
+    this.add
+      .text(camera.centerX, titleY, GAME_TITLE.toUpperCase(), {
+        color: '#f8fafc',
+        fontFamily: 'monospace',
+        fontStyle: 'bold',
+        fontSize: isPortrait ? '50px' : '64px',
+        stroke: '#0f172a',
+        strokeThickness: 8,
+        align: 'center',
+        wordWrap: { width: camera.width - 48 }
+      })
+      .setOrigin(0.5);
+
+    if (GAME_TAGLINE) {
+      this.add
+        .text(camera.centerX, titleY + (isPortrait ? 46 : 42), GAME_TAGLINE, {
+          color: '#94a3b8',
+          fontFamily: 'monospace',
+          fontSize: isPortrait ? '16px' : '18px',
+          align: 'center',
+          wordWrap: { width: camera.width - 64 }
+        })
+        .setOrigin(0.5);
+    }
+
+    const firstButtonY = blockTopY + 64 + taglineHeight + titleToButtonsGap + buttonHeight / 2;
+    this.renderMenu(firstButtonY, buttonHeight, buttonHeight + buttonGap);
 
     const keyUp = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.UP);
     const keyDown = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN);
@@ -71,23 +106,22 @@ export class MainMenuScene extends BaseScene {
     });
   }
 
-  private renderMenu(): void {
+  private renderMenu(startY: number, buttonHeight: number, spacing: number): void {
     this.clearButtons();
 
     const playOption: MenuOption = { label: 'Play', action: () => this.scene.start(SCENE_KEYS.ModeSelect) };
     const settingsOption: MenuOption = { label: 'Settings', action: () => this.scene.start(SCENE_KEYS.Settings) };
     this.options = [playOption, settingsOption];
 
-    const startY = 164;
-    const spacing = 55;
+    const buttonWidth = Math.min(360, this.cameras.main.width - 80);
     let row = 0;
 
     const layoutButton = (option: MenuOption, optionIndex: number): void => {
       const button = createTextButton(this, {
         x: this.cameras.main.centerX,
         y: startY + row * spacing,
-        width: 360,
-        height: 56,
+        width: buttonWidth,
+        height: buttonHeight,
         label: option.label,
         onClick: () => this.confirmOption(option),
         onHover: () => this.setSelection(optionIndex)

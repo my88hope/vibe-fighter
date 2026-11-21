@@ -128,6 +128,10 @@ export function createSelectionCard(scene: Phaser.Scene, config: SelectionCardCo
         align: 'center'
       })
       .setOrigin(0.5);
+    const maxSubtitleWidth = Math.max(40, config.width - 14);
+    if (subtitle.width > maxSubtitleWidth) {
+      subtitle.setScale(maxSubtitleWidth / subtitle.width);
+    }
     children.push(subtitle);
   }
 

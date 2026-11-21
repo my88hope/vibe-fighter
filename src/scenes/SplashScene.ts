@@ -15,27 +15,33 @@ export class SplashScene extends BaseScene {
     this.markActiveScene(SCENE_KEYS.Splash);
 
     const camera = this.cameras.main;
+    const isPortrait = camera.height > camera.width;
     camera.setBackgroundColor(0x020617);
 
     this.add
-      .text(camera.centerX, 88, GAME_TITLE.toUpperCase(), {
+      .text(camera.centerX, camera.centerY - (GAME_TAGLINE ? 26 : 0), GAME_TITLE.toUpperCase(), {
         color: '#f8fafc',
         fontFamily: 'monospace',
-        fontSize: '46px',
+        fontStyle: 'bold',
+        fontSize: isPortrait ? '52px' : '68px',
         stroke: '#0f172a',
-        strokeThickness: 8
+        strokeThickness: 8,
+        align: 'center',
+        wordWrap: { width: camera.width - 48 }
       })
       .setOrigin(0.5)
       .setDepth(2);
 
     if (GAME_TAGLINE) {
       this.add
-        .text(camera.centerX, 132, GAME_TAGLINE, {
-          color: '#f8fafc',
+        .text(camera.centerX, camera.centerY + 34, GAME_TAGLINE, {
+          color: '#cbd5e1',
           fontFamily: 'monospace',
-          fontSize: '18px',
+          fontSize: isPortrait ? '17px' : '20px',
           stroke: '#0f172a',
-          strokeThickness: 5
+          strokeThickness: 5,
+          align: 'center',
+          wordWrap: { width: camera.width - 64 }
         })
         .setOrigin(0.5)
         .setDepth(2);

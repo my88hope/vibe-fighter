@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 
+import { ensureFightersReady } from '../game/assets';
 import { playAttackHitSfx } from '../game/combatSfx';
 import { Fighter, NEUTRAL_FIGHTER_INPUT, type FighterInput } from '../game/fighter';
 import { getCharacterDefinition } from '../game/hero';
@@ -90,6 +91,7 @@ export class MatchScene extends BaseScene {
 
   private spawnX1 = 0;
   private spawnX2 = 0;
+  private edgeMargin = EDGE_MARGIN;
 
   private stageWorldWidth = 0;
   private maxScroll = 0;
@@ -100,6 +102,8 @@ export class MatchScene extends BaseScene {
   private touchControls!: MatchTouchControls;
   private roundTimeMs = ROUND_SECONDS * 1000;
   private overlay: Phaser.GameObjects.GameObject[] = [];
+  private matchReady = false;
+  private sceneDestroyed = false;
 
   constructor() {
     super(SCENE_KEYS.Match);
@@ -118,11 +122,40 @@ export class MatchScene extends BaseScene {
     this.p1Wins = 0;
     this.p2Wins = 0;
     this.overlay = [];
+    this.matchReady = false;
+    this.sceneDestroyed = false;
 
     this.markActiveScene(SCENE_KEYS.Match);
     this.cameras.main.setBackgroundColor(0x05070d);
+    this.edgeMargin = Math.min(EDGE_MARGIN, Math.round(this.cameras.main.width * 0.14));
 
     this.buildStage();
+
+    const loadingObjects = this.createMatchLoadingOverlay();
+    const p1Id = this.config.p1CharacterId;
+    const p2Id = this.config.p2CharacterId;
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.sceneDestroyed = true;
+      loadingObjects.destroy();
+    });
+
+    void ensureFightersReady(this, [p1Id, p2Id], (fraction, label) => {
+      if (!this.sceneDestroyed) {
+        loadingObjects.update(fraction, label);
+      }
+    })
+      .catch((error) => console.error('[match] failed to prepare fighters', error))
+      .then(() => {
+        loadingObjects.destroy();
+        if (this.sceneDestroyed) {
+          return;
+        }
+        this.finishMatchSetup();
+      });
+  }
+
+  private finishMatchSetup(): void {
     this.spawnFighters();
     this.registerKeys();
     this.touchControls = new MatchTouchControls(this, this.app);
@@ -150,13 +183,17 @@ export class MatchScene extends BaseScene {
     });
     this.hud.slideIn();
 
+    const isNarrow = this.cameras.main.width < 900;
     this.banner = this.add
       .text(this.cameras.main.centerX, this.cameras.main.centerY - 40, '', {
         color: '#f8fafc',
         fontFamily: 'monospace',
-        fontSize: '64px',
+        fontStyle: 'bold',
+        fontSize: isNarrow ? '48px' : '64px',
         stroke: '#020617',
-        strokeThickness: 8
+        strokeThickness: 8,
+        align: 'center',
+        wordWrap: { width: this.cameras.main.width - 48 }
       })
       .setOrigin(0.5)
       .setDepth(BANNER_DEPTH)
@@ -167,6 +204,7 @@ export class MatchScene extends BaseScene {
       this.cpu = new CpuController();
     }
 
+    this.matchReady = true;
     this.startRound();
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -179,6 +217,76 @@ export class MatchScene extends BaseScene {
     });
   }
 
+  private createMatchLoadingOverlay(): {
+    update: (fraction: number, label: string) => void;
+    destroy: () => void;
+  } {
+    const { centerX, centerY, width, height } = this.cameras.main;
+    const barWidth = Math.min(440, width - 80);
+    const barHeight = 20;
+    const p1Label = getCharacterDefinition(this.config.p1CharacterId).label.toUpperCase();
+    const p2Label = getCharacterDefinition(this.config.p2CharacterId).label.toUpperCase();
+
+    const backdrop = this.add
+      .rectangle(centerX, centerY, width, height, 0x020617, 0.78)
+      .setScrollFactor(0)
+      .setDepth(OVERLAY_DEPTH);
+    const matchupText = this.add
+      .text(centerX, centerY - 52, `${p1Label}  VS  ${p2Label}`, {
+        color: '#facc15',
+        fontFamily: 'monospace',
+        fontStyle: 'bold',
+        fontSize: width < 900 ? '24px' : '30px',
+        stroke: '#020617',
+        strokeThickness: 6,
+        align: 'center',
+        wordWrap: { width: width - 48 }
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(OVERLAY_DEPTH);
+    const track = this.add
+      .rectangle(centerX, centerY + 4, barWidth + 6, barHeight + 6, 0x0f172a, 0.95)
+      .setStrokeStyle(2, 0x38bdf8, 0.9)
+      .setScrollFactor(0)
+      .setDepth(OVERLAY_DEPTH);
+    const fill = this.add
+      .rectangle(centerX - barWidth / 2, centerY + 4, 4, barHeight, 0x38bdf8, 1)
+      .setOrigin(0, 0.5)
+      .setScrollFactor(0)
+      .setDepth(OVERLAY_DEPTH);
+    const status = this.add
+      .text(centerX, centerY + 38, 'Loading fighters...', {
+        color: '#e2e8f0',
+        fontFamily: 'monospace',
+        fontSize: '14px'
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(OVERLAY_DEPTH);
+
+    const items: Phaser.GameObjects.GameObject[] = [backdrop, matchupText, track, fill, status];
+    let destroyed = false;
+
+    return {
+      update: (fraction: number, label: string) => {
+        if (destroyed) {
+          return;
+        }
+        const clamped = Phaser.Math.Clamp(fraction, 0, 1);
+        fill.width = Math.max(4, Math.round(barWidth * clamped));
+        status.setText(`${label} (${Math.round(clamped * 100)}%)`);
+      },
+      destroy: () => {
+        if (destroyed) {
+          return;
+        }
+        destroyed = true;
+        items.forEach((item) => item.destroy());
+      }
+    };
+  }
+
   /**
    * Per-frame loop: feeds both fighters their input (only while fighting),
    * keeps them facing each other, resolves hits, checks for a KO, and redraws
@@ -187,6 +295,10 @@ export class MatchScene extends BaseScene {
    * @param delta - Milliseconds since the previous frame.
    */
   update(time: number, delta: number): void {
+    if (!this.matchReady) {
+      return;
+    }
+
     const seconds = delta / 1000;
     const fighting = this.phase === 'fighting';
 
@@ -439,11 +551,12 @@ export class MatchScene extends BaseScene {
   private spawnFighters(): void {
     const cam = this.cameras.main;
     const groundY = Math.round(cam.height * GROUND_FRACTION);
-    const minX = EDGE_MARGIN;
-    const maxX = this.stageWorldWidth - EDGE_MARGIN;
+    const minX = this.edgeMargin;
+    const maxX = this.stageWorldWidth - this.edgeMargin;
     const center = this.stageWorldWidth / 2;
-    this.spawnX1 = Math.round(center - cam.width * SPAWN_OFFSET_FRACTION);
-    this.spawnX2 = Math.round(center + cam.width * SPAWN_OFFSET_FRACTION);
+    const spawnOffsetFraction = cam.width < 900 ? 0.24 : SPAWN_OFFSET_FRACTION;
+    this.spawnX1 = Math.round(center - cam.width * spawnOffsetFraction);
+    this.spawnX2 = Math.round(center + cam.width * spawnOffsetFraction);
 
     this.p1 = new Fighter({
       scene: this,
@@ -533,8 +646,8 @@ export class MatchScene extends BaseScene {
 
     cam.setScroll(scrollX, 0);
 
-    const leftWall = scrollX + EDGE_MARGIN;
-    const rightWall = scrollX + viewWidth - EDGE_MARGIN;
+    const leftWall = scrollX + this.edgeMargin;
+    const rightWall = scrollX + viewWidth - this.edgeMargin;
     this.p1.setHorizontalBounds(leftWall, rightWall);
     this.p2.setHorizontalBounds(leftWall, rightWall);
   }
@@ -598,17 +711,21 @@ export class MatchScene extends BaseScene {
 
   /** Draws the control legend at the bottom of the screen. */
   private createControlsLegend(): void {
-    const { centerX, height } = this.cameras.main;
+    const { centerX, width, height } = this.cameras.main;
+    const isNarrow = width < 900;
     const p1 = 'P1: WASD • F light • G heavy • C block • V special';
     const p2 = this.config.mode === '1vcpu' ? 'P2: CPU' : 'P2: Arrows • , light • . heavy • / block • L special';
+    const sep = isNarrow ? '\n' : '      ';
 
     this.controlsLegend = this.add
-      .text(centerX, height - 22, `${p1}      ${p2}      Esc Menu`, {
+      .text(centerX, height - (isNarrow ? 30 : 22), `${p1}${sep}${p2}${sep}Esc Menu`, {
         color: '#cbd5f5',
         fontFamily: 'monospace',
-        fontSize: '12px',
+        fontSize: isNarrow ? '11px' : '12px',
         backgroundColor: 'rgba(2, 6, 23, 0.6)',
-        padding: { x: 10, y: 5 }
+        padding: { x: 10, y: 5 },
+        align: 'center',
+        wordWrap: { width: width - 32 }
       })
       .setOrigin(0.5)
       .setDepth(HUD_DEPTH)
@@ -628,8 +745,8 @@ export class MatchScene extends BaseScene {
     this.syncControlsLegendVisibility();
     this.roundTimeMs = ROUND_SECONDS * 1000;
 
-    const fullMin = EDGE_MARGIN;
-    const fullMax = this.stageWorldWidth - EDGE_MARGIN;
+    const fullMin = this.edgeMargin;
+    const fullMax = this.stageWorldWidth - this.edgeMargin;
     this.p1.setHorizontalBounds(fullMin, fullMax);
     this.p2.setHorizontalBounds(fullMin, fullMax);
 
@@ -705,6 +822,7 @@ export class MatchScene extends BaseScene {
     this.hideBanner();
 
     const { centerX, centerY, width, height } = this.cameras.main;
+    const isNarrow = width < 900;
 
     const dim = this.add
       .rectangle(centerX, centerY, width, height, 0x020617, 0.62)
@@ -712,20 +830,22 @@ export class MatchScene extends BaseScene {
       .setScrollFactor(0);
 
     const title = this.add
-      .text(centerX, centerY - 90, `${winnerName}  WINS!`, {
+      .text(centerX, centerY - 96, `${winnerName}  WINS!`, {
         color: '#facc15',
         fontFamily: 'monospace',
-        fontSize: '46px',
+        fontStyle: 'bold',
+        fontSize: isNarrow ? '34px' : '46px',
         stroke: '#020617',
         strokeThickness: 6,
-        align: 'center'
+        align: 'center',
+        wordWrap: { width: width - 48 }
       })
       .setOrigin(0.5)
       .setDepth(OVERLAY_DEPTH)
       .setScrollFactor(0);
 
     const score = this.add
-      .text(centerX, centerY - 30, `${this.p1Wins} - ${this.p2Wins}`, {
+      .text(centerX, centerY - 26, `${this.p1Wins} - ${this.p2Wins}`, {
         color: '#e2e8f0',
         fontFamily: 'monospace',
         fontSize: '28px'
@@ -734,8 +854,8 @@ export class MatchScene extends BaseScene {
       .setDepth(OVERLAY_DEPTH)
       .setScrollFactor(0);
 
-    const rematch = this.makeOverlayButton(centerX, centerY + 40, 'Rematch  (R)', () => this.rematch());
-    const menu = this.makeOverlayButton(centerX, centerY + 96, 'Main Menu  (Esc)', () => this.goToMenu());
+    const rematch = this.makeOverlayButton(centerX, centerY + 42, 'Rematch  (R)', () => this.rematch());
+    const menu = this.makeOverlayButton(centerX, centerY + 100, 'Main Menu  (Esc)', () => this.goToMenu());
 
     this.overlay = [dim, title, score, rematch, menu];
   }

@@ -52,24 +52,53 @@ export class ModeSelectScene extends BaseScene {
   }
 
   private buildCards(): void {
-    const { centerX, centerY } = this.cameras.main;
-    const cardWidth = 320;
-    const cardHeight = 260;
-    const gap = 60;
+    const { centerX, centerY, width, height } = this.cameras.main;
+    const isPortrait = height > width;
+
+    if (isPortrait) {
+      const cardWidth = Math.min(440, width - 88);
+      const cardHeight = Math.min(310, Math.floor((height - 300) / MODE_OPTIONS.length));
+      const gap = 30;
+      const totalHeight = cardHeight * MODE_OPTIONS.length + gap * (MODE_OPTIONS.length - 1);
+      const startY = centerY + 18 - totalHeight / 2 + cardHeight / 2;
+
+      MODE_OPTIONS.forEach((option, index) => {
+        const card = createSelectionCard(this, {
+          x: centerX,
+          y: startY + index * (cardHeight + gap),
+          width: cardWidth,
+          height: cardHeight,
+          title: option.title,
+          subtitle: option.subtitle,
+          texture: option.texture,
+          imageMaxSize: Math.min(180, cardHeight - 104),
+          imageOffsetY: -36,
+          onHover: () => this.setSelection(index),
+          onClick: () => this.confirm(index)
+        });
+
+        this.cards.push(card);
+      });
+      return;
+    }
+
+    const cardWidth = Math.min(340, Math.floor((width - 140) / MODE_OPTIONS.length));
+    const cardHeight = 270;
+    const gap = 56;
     const totalWidth = cardWidth * MODE_OPTIONS.length + gap * (MODE_OPTIONS.length - 1);
     const startX = centerX - totalWidth / 2 + cardWidth / 2;
 
     MODE_OPTIONS.forEach((option, index) => {
       const card = createSelectionCard(this, {
         x: startX + index * (cardWidth + gap),
-        y: centerY + 10,
+        y: centerY + 12,
         width: cardWidth,
         height: cardHeight,
         title: option.title,
         subtitle: option.subtitle,
         texture: option.texture,
         imageMaxSize: 168,
-        imageOffsetY: -46,
+        imageOffsetY: -44,
         onHover: () => this.setSelection(index),
         onClick: () => this.confirm(index)
       });
@@ -85,9 +114,13 @@ export class ModeSelectScene extends BaseScene {
     }
 
     keyboard.on('keydown-LEFT', () => this.moveSelection(-1));
+    keyboard.on('keydown-UP', () => this.moveSelection(-1));
     keyboard.on('keydown-A', () => this.moveSelection(-1));
+    keyboard.on('keydown-W', () => this.moveSelection(-1));
     keyboard.on('keydown-RIGHT', () => this.moveSelection(1));
+    keyboard.on('keydown-DOWN', () => this.moveSelection(1));
     keyboard.on('keydown-D', () => this.moveSelection(1));
+    keyboard.on('keydown-S', () => this.moveSelection(1));
     keyboard.on('keydown-ENTER', () => this.confirm(this.selectedIndex));
     keyboard.on('keydown-SPACE', () => this.confirm(this.selectedIndex));
     keyboard.on('keydown-ESC', () => this.goToMenu());

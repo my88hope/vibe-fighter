@@ -23,19 +23,6 @@ const SELECTABLE_ROSTER = SELECTABLE_FIGHTER_IDS.flatMap((id) =>
   FIGHTER_CHARACTER_DEFINITIONS.filter((character) => character.id === id)
 );
 
-// Use a 2-row grid once the roster grows past 6 so cards stay crisp and readable.
-const GRID_COLS =
-  SELECTABLE_ROSTER.length > 6 ? Math.ceil(SELECTABLE_ROSTER.length / 2) : Math.max(1, SELECTABLE_ROSTER.length);
-const GRID_ROWS = Math.ceil(SELECTABLE_ROSTER.length / GRID_COLS);
-const CARD_GAP = SELECTABLE_ROSTER.length > 3 ? 22 : 48;
-const ROW_GAP = 32;
-const CARD_WIDTH = Math.min(
-  300,
-  Math.floor((1180 - CARD_GAP * (GRID_COLS - 1)) / Math.max(1, GRID_COLS))
-);
-const CARD_HEIGHT =
-  GRID_ROWS > 1 ? Math.min(206, Math.round(CARD_WIDTH * 1.15)) : Math.round(CARD_WIDTH * 1.28);
-
 interface PlayerCursor {
   index: number;
   locked: boolean;
@@ -54,6 +41,12 @@ export class CharacterSelectScene extends BaseScene {
   private stageId = '';
   private cards: SelectionCard[] = [];
   private cardPositions: Array<{ x: number; y: number }> = [];
+  private gridCols = 6;
+  private gridRows = 2;
+  private cardWidth = 178;
+  private cardHeight = 204;
+  private cardGap = 22;
+  private rowGap = 32;
   private p1!: PlayerCursor;
   private p2!: PlayerCursor;
   private transitioning = false;
@@ -76,9 +69,10 @@ export class CharacterSelectScene extends BaseScene {
     this.cameras.main.setBackgroundColor(0x020617);
     this.createHeading(
       'Select Fighter',
-      this.mode === '1v1' ? 'P1 = WASD + Space   •   P2 = Arrows + Enter' : 'WASD / Arrows to choose • Enter to confirm'
+      this.mode === '1v1' ? 'P1 = WASD + Space   •   P2 = Arrows + Enter' : 'WASD / Arrows / Tap to choose • Enter to confirm'
     );
 
+    this.computeGridLayout();
     this.buildCards();
     this.buildCursors();
     this.registerInput();
@@ -91,32 +85,65 @@ export class CharacterSelectScene extends BaseScene {
     });
   }
 
+  private computeGridLayout(): void {
+    const { width, height } = this.cameras.main;
+    const rosterCount = SELECTABLE_ROSTER.length;
+    const isPortrait = height > width;
+
+    this.gridCols = isPortrait
+      ? rosterCount > 4
+        ? 3
+        : Math.max(1, rosterCount)
+      : rosterCount > 6
+        ? Math.ceil(rosterCount / 2)
+        : Math.max(1, rosterCount);
+    this.gridRows = Math.max(1, Math.ceil(rosterCount / this.gridCols));
+    this.cardGap = isPortrait ? 18 : rosterCount > 3 ? 22 : 48;
+    this.rowGap = isPortrait ? 34 : 34;
+
+    const topSafe = isPortrait ? 142 : 122;
+    const bottomSafe = isPortrait ? 64 : 52;
+    const availWidth = Math.max(240, width - (isPortrait ? 48 : 88));
+    const availHeight = Math.max(240, height - topSafe - bottomSafe);
+
+    const maxCardWidth = Math.floor((availWidth - this.cardGap * (this.gridCols - 1)) / this.gridCols);
+    const maxCardHeight = Math.floor((availHeight - this.rowGap * (this.gridRows - 1) - 18) / this.gridRows);
+
+    this.cardWidth = Math.min(isPortrait ? 220 : 280, maxCardWidth);
+    const idealHeight = this.gridRows > 1 ? Math.round(this.cardWidth * 1.15) : Math.round(this.cardWidth * 1.28);
+    this.cardHeight = Math.min(isPortrait ? 240 : 210, maxCardHeight, idealHeight);
+  }
+
   private buildCards(): void {
-    const { centerX, centerY } = this.cameras.main;
+    const { centerX, width, height } = this.cameras.main;
+    const isPortrait = height > width;
     const roster = SELECTABLE_ROSTER;
-    const totalHeight = CARD_HEIGHT * GRID_ROWS + ROW_GAP * (GRID_ROWS - 1);
-    const startY = centerY + 24 - totalHeight / 2 + CARD_HEIGHT / 2;
+    const totalHeight = this.cardHeight * this.gridRows + this.rowGap * (this.gridRows - 1);
+    const topSafe = isPortrait ? 142 : 122;
+    const bottomSafe = isPortrait ? 64 : 52;
+    const areaCenterY = topSafe + (height - topSafe - bottomSafe) / 2 + 6;
+    const startY = areaCenterY - totalHeight / 2 + this.cardHeight / 2;
 
     roster.forEach((character, index) => {
-      const row = Math.floor(index / GRID_COLS);
-      const col = index % GRID_COLS;
-      const colsInRow = row === GRID_ROWS - 1 ? roster.length - row * GRID_COLS : GRID_COLS;
-      const rowWidth = CARD_WIDTH * colsInRow + CARD_GAP * (colsInRow - 1);
-      const rowStartX = centerX - rowWidth / 2 + CARD_WIDTH / 2;
-      const x = rowStartX + col * (CARD_WIDTH + CARD_GAP);
-      const y = startY + row * (CARD_HEIGHT + ROW_GAP);
+      const row = Math.floor(index / this.gridCols);
+      const col = index % this.gridCols;
+      const colsInRow = row === this.gridRows - 1 ? roster.length - row * this.gridCols : this.gridCols;
+      const rowWidth = this.cardWidth * colsInRow + this.cardGap * (colsInRow - 1);
+      const rowStartX = centerX - rowWidth / 2 + this.cardWidth / 2;
+      const x = rowStartX + col * (this.cardWidth + this.cardGap);
+      const y = startY + row * (this.cardHeight + this.rowGap);
 
       this.cardPositions.push({ x, y });
 
       const card = createSelectionCard(this, {
         x,
         y,
-        width: CARD_WIDTH,
-        height: CARD_HEIGHT,
+        width: this.cardWidth,
+        height: this.cardHeight,
         title: character.label,
         texture: this.textures.exists(character.portrait.key) ? character.portrait.key : undefined,
-        imageMaxSize: Math.min(CARD_WIDTH - 28, CARD_HEIGHT - 64),
-        imageOffsetY: -22,
+        imageMaxSize: Math.min(this.cardWidth - 26, this.cardHeight - 58),
+        imageOffsetY: -20,
         onHover: () => this.hoverCard(index),
         onClick: () => this.clickCard(index)
       });
@@ -141,7 +168,7 @@ export class CharacterSelectScene extends BaseScene {
 
   private createCursor(label: string, color: number, index: number): PlayerCursor {
     const outline = this.add
-      .rectangle(0, 0, CARD_WIDTH + 16, CARD_HEIGHT + 16, color, 0)
+      .rectangle(0, 0, this.cardWidth + 14, this.cardHeight + 14, color, 0)
       .setStrokeStyle(4, color, 1)
       .setDepth(20);
 
@@ -150,8 +177,9 @@ export class CharacterSelectScene extends BaseScene {
         color: '#020617',
         backgroundColor: colorToCss(color),
         fontFamily: 'monospace',
-        fontSize: '16px',
-        padding: { x: 8, y: 3 }
+        fontStyle: 'bold',
+        fontSize: '14px',
+        padding: { x: 8, y: 2 }
       })
       .setOrigin(0.5)
       .setDepth(21);
@@ -167,7 +195,7 @@ export class CharacterSelectScene extends BaseScene {
 
     cursor.outline.setPosition(position.x, position.y);
     cursor.outline.setStrokeStyle(cursor.locked ? 7 : 4, cursor.outline.strokeColor, 1);
-    cursor.label.setPosition(position.x, position.y - CARD_HEIGHT / 2 - 18);
+    cursor.label.setPosition(position.x, position.y - this.cardHeight / 2 - 15);
   }
 
   private registerInput(): void {
@@ -179,20 +207,20 @@ export class CharacterSelectScene extends BaseScene {
     if (this.mode === '1v1') {
       keyboard.on('keydown-A', () => this.movePlayer(this.p1, -1));
       keyboard.on('keydown-D', () => this.movePlayer(this.p1, 1));
-      keyboard.on('keydown-W', () => this.movePlayer(this.p1, -GRID_COLS));
-      keyboard.on('keydown-S', () => this.movePlayer(this.p1, GRID_COLS));
+      keyboard.on('keydown-W', () => this.movePlayer(this.p1, -this.gridCols));
+      keyboard.on('keydown-S', () => this.movePlayer(this.p1, this.gridCols));
       keyboard.on('keydown-LEFT', () => this.movePlayer(this.p2, -1));
       keyboard.on('keydown-RIGHT', () => this.movePlayer(this.p2, 1));
-      keyboard.on('keydown-UP', () => this.movePlayer(this.p2, -GRID_COLS));
-      keyboard.on('keydown-DOWN', () => this.movePlayer(this.p2, GRID_COLS));
+      keyboard.on('keydown-UP', () => this.movePlayer(this.p2, -this.gridCols));
+      keyboard.on('keydown-DOWN', () => this.movePlayer(this.p2, this.gridCols));
       keyboard.on('keydown-SPACE', () => this.confirmPlayer(this.p1));
       keyboard.on('keydown-F', () => this.confirmPlayer(this.p1));
       keyboard.on('keydown-ENTER', () => this.confirmPlayer(this.p2));
     } else {
       const moveLeft = (): void => this.movePlayer(this.p1, -1);
       const moveRight = (): void => this.movePlayer(this.p1, 1);
-      const moveUp = (): void => this.movePlayer(this.p1, -GRID_COLS);
-      const moveDown = (): void => this.movePlayer(this.p1, GRID_COLS);
+      const moveUp = (): void => this.movePlayer(this.p1, -this.gridCols);
+      const moveDown = (): void => this.movePlayer(this.p1, this.gridCols);
       keyboard.on('keydown-A', moveLeft);
       keyboard.on('keydown-LEFT', moveLeft);
       keyboard.on('keydown-D', moveRight);
@@ -269,6 +297,17 @@ export class CharacterSelectScene extends BaseScene {
       this.p1.index = index;
       this.refreshCursor(this.p1);
       this.confirmPlayer(this.p1);
+      return;
+    }
+
+    if (!this.p1.locked && index !== this.p2.index) {
+      this.p1.index = index;
+      this.refreshCursor(this.p1);
+      this.confirmPlayer(this.p1);
+    } else if (this.p1.locked && !this.p2.locked && index !== this.p1.index) {
+      this.p2.index = index;
+      this.refreshCursor(this.p2);
+      this.confirmPlayer(this.p2);
     }
   }
 

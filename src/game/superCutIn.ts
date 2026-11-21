@@ -112,17 +112,21 @@ export function playSuperCutIn(scene: Phaser.Scene, options: SuperCutInOptions):
   buildPortrait(scene, track, options, { width, height, fromLeft, color });
 
   // 5) Character name caption, entering from the opposite side.
-  const captionFromX = fromLeft ? width + 200 : -200;
-  const captionRestX = fromLeft ? width - 40 : 40;
+  const isNarrow = width < 900;
+  const captionMargin = isNarrow ? 24 : 40;
+  const captionFromX = fromLeft ? width + 220 : -220;
+  const captionRestX = fromLeft ? width - captionMargin : captionMargin;
   const caption = track(
     scene.add
-      .text(captionFromX, height * 0.5, getCharacterDefinition(options.characterId).label.toUpperCase(), {
+      .text(captionFromX, height * (isNarrow ? 0.44 : 0.5), getCharacterDefinition(options.characterId).label.toUpperCase(), {
         color: '#f8fafc',
         fontFamily: 'monospace',
         fontStyle: 'bold',
-        fontSize: '40px',
+        fontSize: isNarrow ? '28px' : '40px',
         stroke: '#05070d',
-        strokeThickness: 6
+        strokeThickness: 6,
+        align: fromLeft ? 'right' : 'left',
+        wordWrap: { width: Math.round(width * 0.48) }
       })
       .setOrigin(fromLeft ? 1 : 0, 0.5)
       .setScrollFactor(0)
@@ -192,10 +196,13 @@ function buildPortrait(
   }
 
   const source = scene.textures.get(portraitKey).getSourceImage();
-  const scale = (height * 1.04) / source.height;
+  const isPortraitScreen = height > width;
+  const maxHeightScale = (height * (isPortraitScreen ? 0.72 : 1.04)) / source.height;
+  const maxWidthScale = (width * (isPortraitScreen ? 0.92 : 0.85)) / source.width;
+  const scale = Math.min(maxHeightScale, maxWidthScale);
   const displayWidth = source.width * scale;
   const displayHeight = source.height * scale;
-  const restX = fromLeft ? displayWidth * 0.42 : width - displayWidth * 0.42;
+  const restX = fromLeft ? displayWidth * (isPortraitScreen ? 0.36 : 0.42) : width - displayWidth * (isPortraitScreen ? 0.36 : 0.42);
   const offX = fromLeft ? -displayWidth * 0.6 : width + displayWidth * 0.6;
 
   const portrait = track(

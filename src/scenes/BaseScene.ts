@@ -14,35 +14,46 @@ export abstract class BaseScene extends Phaser.Scene {
   }
 
   protected createHeading(title: string, subtitle: string): void {
-    const { centerX } = this.cameras.main;
+    const { centerX, width, height } = this.cameras.main;
+    const isPortrait = height > width;
+    const titleY = isPortrait ? 68 : 50;
+    const subtitleY = titleY + (isPortrait ? 40 : 36);
 
     this.add
-      .text(centerX, 56, title, {
+      .text(centerX, titleY, title, {
         color: '#f8fafc',
         fontFamily: 'monospace',
-        fontSize: '34px'
+        fontStyle: 'bold',
+        fontSize: isPortrait ? '32px' : '36px',
+        align: 'center',
+        wordWrap: { width: width - 48 }
       })
       .setOrigin(0.5);
 
     if (subtitle) {
       this.add
-        .text(centerX, 92, subtitle, {
+        .text(centerX, subtitleY, subtitle, {
           color: '#94a3b8',
           fontFamily: 'monospace',
-          fontSize: '16px'
+          fontSize: isPortrait ? '15px' : '16px',
+          align: 'center',
+          wordWrap: { width: width - 48 }
         })
         .setOrigin(0.5);
     }
   }
 
   protected createFooterHint(text: string): void {
-    const { centerX, height } = this.cameras.main;
+    const { centerX, width, height } = this.cameras.main;
+    const isPortrait = height > width;
 
     this.add
-      .text(centerX, height - 28, text, {
+      .text(centerX, height - (isPortrait ? 34 : 26), text, {
         color: '#94a3b8',
         fontFamily: 'monospace',
-        fontSize: '14px'
+        fontSize: isPortrait ? '13px' : '14px',
+        align: 'center',
+        wordWrap: { width: width - 40 }
       })
       .setOrigin(0.5)
       .setDepth(100);

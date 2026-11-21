@@ -1,9 +1,18 @@
+import abyssalCoralUrl from '../assets/images/stage_abyssal_coral_1795265023259.jpg';
+import crimsonShrineUrl from '../assets/images/stage_crimson_shrine_1795265023311.jpg';
+import glacialAuroraUrl from '../assets/images/stage_glacial_aurora_1795265023441.jpg';
+import neonRainUrl from '../assets/images/stage_neon_rain_1795265023650.jpg';
+import obsidianCalderaUrl from '../assets/images/stage_obsidian_caldera_1795265023968.jpg';
+import orbitalStarforgeUrl from '../assets/images/stage_orbital_starforge_1795265023531.jpg';
+import phantomClocktowerUrl from '../assets/images/stage_phantom_clocktower_1795265023422.jpg';
+import sunkenDesertUrl from '../assets/images/stage_sunken_desert_1795265023507.jpg';
+
 import type { ImageAsset } from './assets';
 import type { StagePreviewDebugState } from './types';
 
 /**
  * A full-frame fighting-stage background candidate. Stages are single images
- * (not parallax layers) used by the Stage Preview gym to evaluate framing.
+ * (not parallax layers) used by Stage Select, MatchScene, and Stage Preview.
  */
 export interface StageDefinition {
   id: string;
@@ -47,10 +56,81 @@ export const STAGE_DEFINITIONS: StageDefinition[] = [
     url: `${STAGE_ASSET_ROOT}/rooftop-sunset-stage.png`,
     width: 2048,
     height: 768
+  },
+  {
+    id: 'abyssal-coral-ruin',
+    label: 'Abyssal Coral Ruin',
+    key: 'abyssal-coral-ruin-stage',
+    url: abyssalCoralUrl,
+    width: 1376,
+    height: 768
+  },
+  {
+    id: 'orbital-starforge',
+    label: 'Orbital Starforge',
+    key: 'orbital-starforge-stage',
+    url: orbitalStarforgeUrl,
+    width: 1376,
+    height: 768
+  },
+  {
+    id: 'neon-rain-alley',
+    label: 'Neon Rain Alley',
+    key: 'neon-rain-alley-stage',
+    url: neonRainUrl,
+    width: 1376,
+    height: 768
+  },
+  {
+    id: 'obsidian-caldera',
+    label: 'Obsidian Caldera',
+    key: 'obsidian-caldera-stage',
+    url: obsidianCalderaUrl,
+    width: 1376,
+    height: 768
+  },
+  {
+    id: 'crimson-torii-shrine',
+    label: 'Crimson Torii Shrine',
+    key: 'crimson-torii-shrine-stage',
+    url: crimsonShrineUrl,
+    width: 1376,
+    height: 768
+  },
+  {
+    id: 'glacial-aurora-citadel',
+    label: 'Glacial Aurora Citadel',
+    key: 'glacial-aurora-citadel-stage',
+    url: glacialAuroraUrl,
+    width: 1376,
+    height: 768
+  },
+  {
+    id: 'sunken-desert-temple',
+    label: 'Sunken Desert Temple',
+    key: 'sunken-desert-temple-stage',
+    url: sunkenDesertUrl,
+    width: 1376,
+    height: 768
+  },
+  {
+    id: 'phantom-clocktower',
+    label: 'Phantom Clocktower',
+    key: 'phantom-clocktower-stage',
+    url: phantomClocktowerUrl,
+    width: 1376,
+    height: 768
   }
 ];
 
-export const STAGE_IMAGE_ASSETS: ImageAsset[] = [];
+export const STAGE_IMAGE_ASSETS: ImageAsset[] = STAGE_DEFINITIONS.map((stage) => ({
+  kind: 'image',
+  key: stage.key,
+  url: stage.url,
+  width: stage.width,
+  height: stage.height,
+  usage: `${stage.label} fighting arena stage background`
+}));
 
 export const DEFAULT_STAGE_PREVIEW_STATE: StagePreviewDebugState = {
   stageId: STAGE_DEFINITIONS[0].id,

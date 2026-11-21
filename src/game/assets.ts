@@ -7,7 +7,14 @@ import {
   type StarterAudioAsset
 } from './core/audio';
 import { GENERATED_TEXTURE_ASSETS, type GeneratedTextureAsset } from './generatedAssets';
-import { CHARACTER_ANIMATIONS, CHARACTER_ASSETS } from './hero';
+import {
+  CHARACTER_ANIMATIONS,
+  CHARACTER_ASSETS,
+  CHARACTER_DEFINITIONS,
+  getCharacterDefinition
+} from './hero';
+import { ensureMyFighterReady, isMyFighter } from './myFighterLoader';
+import { STAGE_IMAGE_ASSETS } from './stageConfig';
 import { TILE_ATLAS_IMAGE_URL, TILE_ATLAS_TEXTURE_KEY, TILE_ATLAS_SIZE } from './tileAtlas';
 import {
   QUEST_UI_ATLAS_IMAGE_URL,
@@ -104,12 +111,33 @@ export const UI_IMAGE_ASSETS: ImageAsset[] = [
   }
 ];
 
+export const FIGHTING_UI_IMAGE_ASSETS: ImageAsset[] = UI_IMAGE_ASSETS.filter(
+  (asset) => asset.key === FIGHTING_UI_ATLAS_TEXTURE_KEY
+);
+
+export const BUNDLED_PORTRAIT_ASSETS: ImageAsset[] = CHARACTER_DEFINITIONS.filter(
+  (character) => !isMyFighter(character.id) && !character.portrait.auto
+).map((character) => character.portrait);
+
 export const MODE_CARD_IMAGE_ASSETS: ImageAsset[] = [];
+
+/**
+ * Lightweight boot asset set: fighting UI atlas, audio cues, all 10 stage
+ * previews, and bundled fighter portraits. Full combat spritesheets are loaded
+ * on demand for the two chosen match fighters so startup is near-instant.
+ */
+export const BOOT_ASSETS: StarterAsset[] = [
+  ...FIGHTING_UI_IMAGE_ASSETS,
+  ...STARTER_AUDIO_ASSETS,
+  ...STAGE_IMAGE_ASSETS,
+  ...BUNDLED_PORTRAIT_ASSETS
+];
 
 export const STARTER_ASSETS: StarterAsset[] = [
   ...CHARACTER_ASSETS,
   ...TILE_IMAGE_ASSETS,
   ...UI_IMAGE_ASSETS,
+  ...STAGE_IMAGE_ASSETS,
   ...STARTER_AUDIO_ASSETS
 ];
 
@@ -170,9 +198,11 @@ export function preloadStarterAssets(scene: Phaser.Scene, assets: StarterAsset[]
   });
 }
 
-export function registerStarterAnimations(scene: Phaser.Scene): void {
-  CHARACTER_ANIMATIONS.forEach((animation) => {
-    if (scene.anims.exists(animation.key)) {
+export function registerCharacterAnimations(scene: Phaser.Scene, characterId: string): void {
+  const character = getCharacterDefinition(characterId);
+
+  character.animations.forEach((animation) => {
+    if (scene.anims.exists(animation.key) || !scene.textures.exists(animation.sheet.key)) {
       return;
     }
 
@@ -186,4 +216,92 @@ export function registerStarterAnimations(scene: Phaser.Scene): void {
       repeat: animation.repeat
     });
   });
+}
+
+export function registerStarterAnimations(scene: Phaser.Scene): void {
+  CHARACTER_ANIMATIONS.forEach((animation) => {
+    if (scene.anims.exists(animation.key) || !scene.textures.exists(animation.sheet.key)) {
+      return;
+    }
+
+    scene.anims.create({
+      key: animation.key,
+      frames: scene.anims.generateFrameNumbers(animation.sheet.key, {
+        start: 0,
+        end: animation.sheet.frames - 1
+      }),
+      frameRate: animation.frameRate,
+      repeat: animation.repeat
+    });
+  });
+}
+
+/**
+ * Loads only the spritesheets/raw pose sheets and registers animations for
+ * the given character ids (typically P1 and P2 at match start). Instantaneous
+ * when already cached in Phaser's texture manager.
+ */
+export async function ensureFightersReady(
+  scene: Phaser.Scene,
+  characterIds: string[],
+  onProgress?: (fraction: number, label: string) => void
+): Promise<void> {
+  const uniqueIds = Array.from(new Set(characterIds.filter(Boolean)));
+
+  if (uniqueIds.length === 0) {
+    onProgress?.(1, 'Fighters ready');
+    return;
+  }
+
+  const bundledToLoad: StarterAsset[] = [];
+  const myFightersToLoad: string[] = [];
+
+  uniqueIds.forEach((id) => {
+    if (isMyFighter(id)) {
+      myFightersToLoad.push(id);
+      return;
+    }
+
+    const character = getCharacterDefinition(id);
+    character.assets.forEach((asset) => {
+      if (!asset.auto && !scene.textures.exists(asset.key)) {
+        bundledToLoad.push(asset);
+      }
+    });
+  });
+
+  const hasBundled = bundledToLoad.length > 0;
+  const bundledWeight = hasBundled ? 0.5 : 0;
+  const myFighterWeight = 1 - bundledWeight;
+
+  if (hasBundled) {
+    await new Promise<void>((resolve) => {
+      preloadStarterAssets(scene, bundledToLoad);
+
+      const handleProgress = (value: number): void => {
+        onProgress?.(value * bundledWeight, 'Loading fighter spritesheets...');
+      };
+      const handleComplete = (): void => {
+        scene.load.off(Phaser.Loader.Events.PROGRESS, handleProgress);
+        resolve();
+      };
+
+      scene.load.on(Phaser.Loader.Events.PROGRESS, handleProgress);
+      scene.load.once(Phaser.Loader.Events.COMPLETE, handleComplete);
+      scene.load.start();
+    });
+  }
+
+  for (let index = 0; index < myFightersToLoad.length; index += 1) {
+    const id = myFightersToLoad[index];
+    const base = bundledWeight + (index / Math.max(1, myFightersToLoad.length)) * myFighterWeight;
+    const span = myFighterWeight / Math.max(1, myFightersToLoad.length);
+
+    await ensureMyFighterReady(scene, id, (subFraction, label) => {
+      onProgress?.(base + subFraction * span, label);
+    });
+  }
+
+  uniqueIds.forEach((id) => registerCharacterAnimations(scene, id));
+  onProgress?.(1, 'Fighters ready');
 }

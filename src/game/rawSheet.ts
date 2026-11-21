@@ -253,20 +253,27 @@ export function removeBackground(data: Uint8ClampedArray, width: number, height:
   const greenScreen = green > red + 50 && green > blue + 50;
   const solid = 85;
   const soft = 135;
+  const solidSq = solid * solid;
+  const softSq = soft * soft;
+  const softRange = soft - solid;
 
   for (let offset = 0; offset < data.length; offset += 4) {
     const r = data[offset];
     const g = data[offset + 1];
     const b = data[offset + 2];
-    const distance = Math.hypot(r - red, g - green, b - blue);
+    const dr = r - red;
+    const dg = g - green;
+    const db = b - blue;
+    const distSq = dr * dr + dg * dg + db * db;
 
-    if (distance < solid) {
+    if (distSq < solidSq) {
       data[offset] = 0;
       data[offset + 1] = 0;
       data[offset + 2] = 0;
       data[offset + 3] = 0;
-    } else if (distance < soft) {
-      data[offset + 3] = Math.round(((distance - solid) / (soft - solid)) * 255);
+    } else if (distSq < softSq) {
+      const distance = Math.sqrt(distSq);
+      data[offset + 3] = Math.round(((distance - solid) / softRange) * 255);
 
       if (greenScreen) {
         data[offset + 1] = Math.min(g, Math.max(r, b));
@@ -391,26 +398,34 @@ function borderColour(data: Uint8ClampedArray, width: number, height: number): [
  * labels are ignored.
  */
 function findPoses(mask: Uint8Array, width: number, height: number): Pose[] {
-  const rowCounts = new Array<number>(height).fill(0);
+  const rowCounts = new Int32Array(height);
 
   for (let y = 0; y < height; y += 1) {
+    const rowOffset = y * width;
+    let sum = 0;
+
     for (let x = 0; x < width; x += 1) {
-      rowCounts[y] += mask[y * width + x];
+      sum += mask[rowOffset + x];
     }
+
+    rowCounts[y] = sum;
   }
 
   const bands = findRuns(rowCounts, Math.max(2, width * 0.003), Math.max(4, height * 0.015));
   const tallestBand = Math.max(0, ...bands.map(([start, end]) => end - start));
   const poses: Pose[] = [];
+  const columnCounts = new Int32Array(width);
 
   bands
     .filter(([start, end]) => end - start >= tallestBand * 0.3)
     .forEach(([bandTop, bandBottom]) => {
-      const columnCounts = new Array<number>(width).fill(0);
+      columnCounts.fill(0);
 
       for (let y = bandTop; y < bandBottom; y += 1) {
+        const rowOffset = y * width;
+
         for (let x = 0; x < width; x += 1) {
-          columnCounts[x] += mask[y * width + x];
+          columnCounts[x] += mask[rowOffset + x];
         }
       }
 
@@ -452,7 +467,7 @@ function splitEvenly(mask: Uint8Array, width: number, height: number, frames: nu
 }
 
 /** Runs of "filled" lines, merging runs separated by less than `minGap`. */
-function findRuns(counts: number[], minCount: number, minGap: number): Array<[number, number]> {
+function findRuns(counts: ArrayLike<number>, minCount: number, minGap: number): Array<[number, number]> {
   const runs: Array<[number, number]> = [];
   let start = -1;
 

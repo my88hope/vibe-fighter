@@ -184,9 +184,14 @@ export function createApp(root: HTMLElement): void {
   const settingsStore = createSettingsStore();
   const debugStore = createDebugStore();
   const gameConfigStore = createGameConfigStore();
-  let currentProfile = resolveStartupProfile(window.location.search);
+  const hasExplicitProfile = searchParams.has('profile');
+  let autoProfileEnabled = !hasExplicitProfile;
+  const detectViewportProfile = (): GameProfile =>
+    window.innerHeight > window.innerWidth ? 'portrait' : 'landscape';
+  let currentProfile = resolveStartupProfile(window.location.search, detectViewportProfile());
   let game: Phaser.Game | null = null;
   let playToastTimeout: number | null = null;
+  let resizeProfileTimeout: number | null = null;
 
   const context: AppContext = {
     debugStore,
@@ -1187,6 +1192,7 @@ export function createApp(root: HTMLElement): void {
       }
     });
     profileToggle.addEventListener('click', () => {
+      autoProfileEnabled = false;
       const next: GameProfile = currentProfile === 'landscape' ? 'portrait' : 'landscape';
       remountGame(next);
     });
@@ -1477,6 +1483,31 @@ export function createApp(root: HTMLElement): void {
       });
     });
   }
+
+  window.addEventListener('resize', () => {
+    if (!autoProfileEnabled) {
+      return;
+    }
+
+    if (resizeProfileTimeout !== null) {
+      window.clearTimeout(resizeProfileTimeout);
+    }
+
+    resizeProfileTimeout = window.setTimeout(() => {
+      resizeProfileTimeout = null;
+      if (Math.abs(window.innerWidth - window.innerHeight) <= 40) {
+        return;
+      }
+
+      const nextProfile = detectViewportProfile();
+      if (
+        nextProfile !== currentProfile &&
+        debugStore.getState().activeScene !== SCENE_KEYS.Match
+      ) {
+        remountGame(nextProfile);
+      }
+    }, 180);
+  });
 
   remountGame(currentProfile);
 }

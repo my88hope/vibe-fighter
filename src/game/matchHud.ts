@@ -90,6 +90,7 @@ export class MatchHud {
   private p2Frac = 1;
   private p1Blink: Phaser.Tweens.Tween | null = null;
   private p2Blink: Phaser.Tweens.Tween | null = null;
+  private hudScale = 1;
 
   /**
    * @param scene - The owning match scene.
@@ -106,6 +107,9 @@ export class MatchHud {
   /** Constructs every HUD element into the root container. */
   private build(): void {
     const camWidth = this.scene.cameras.main.width;
+    this.hudScale = Math.min(1, camWidth / 1280);
+    this.root.setScale(this.hudScale);
+    const layoutWidth = camWidth / this.hudScale;
 
     // --- Player 1 (left) ---
     const p1HealthX = PAD + PORTRAIT_DISP + 6;
@@ -117,9 +121,9 @@ export class MatchHud {
     this.p1Pips = this.buildPips(p1HealthX, pipsY, false);
 
     // --- Player 2 (right) ---
-    const p2HealthX = camWidth - PAD - PORTRAIT_DISP - 6 - HEALTH_DISP_W;
+    const p2HealthX = layoutWidth - PAD - PORTRAIT_DISP - 6 - HEALTH_DISP_W;
     this.buildHealth('right', p2HealthX, healthY);
-    this.buildPortrait('portrait-frame-blue-right', this.config.p2CharacterId, camWidth - PAD - PORTRAIT_DISP / 2, false);
+    this.buildPortrait('portrait-frame-blue-right', this.config.p2CharacterId, layoutWidth - PAD - PORTRAIT_DISP / 2, false);
     this.buildNameplate('nameplate-gold-right', this.config.p2CharacterId, p2HealthX, healthY, true);
     this.p2Pips = this.buildPips(p2HealthX + HEALTH_DISP_W, pipsY, true);
 
@@ -129,7 +133,7 @@ export class MatchHud {
     this.buildMeter('right', p2HealthX + HEALTH_DISP_W, meterY);
 
     // --- Timer (centre) ---
-    this.buildTimer(camWidth / 2);
+    this.buildTimer(layoutWidth / 2);
 
     this.applyHealth(1, 1);
     this.setMeter(0, 0);
@@ -447,7 +451,7 @@ export class MatchHud {
 
   /** Slides the HUD down into place from above (match start). */
   slideIn(): void {
-    this.root.y = -SLIDE_OFFSET;
+    this.root.y = -SLIDE_OFFSET * this.hudScale;
     this.scene.tweens.add({ targets: this.root, y: 0, duration: 900, ease: 'Back.Out' });
   }
 
