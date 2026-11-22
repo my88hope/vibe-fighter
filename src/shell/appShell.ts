@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 
+import { createYouTubeBackgroundMusic } from '../game/backgroundMusic';
 import {
   buildBackgroundGymConfigExport,
   BACKGROUND_GYM_CONFIG_SAVE_TARGET,
@@ -182,6 +183,7 @@ export function createApp(root: HTMLElement): void {
   }
 
   const settingsStore = createSettingsStore();
+  createYouTubeBackgroundMusic(settingsStore);
   const debugStore = createDebugStore();
   const gameConfigStore = createGameConfigStore();
   const hasExplicitProfile = searchParams.has('profile');
