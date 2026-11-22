@@ -2,8 +2,17 @@ import { defineConfig } from 'vite';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { writeGameMeta } from './scripts/gameMeta';
 
-const PUBLIC_ROOT = resolve(import.meta.dirname, 'public');
+const PROJECT_ROOT = import.meta.dirname;
+const PUBLIC_ROOT = resolve(PROJECT_ROOT, 'public');
+const GAME_META_SOURCES = new Set([
+  resolve(PROJECT_ROOT, 'metadata.json'),
+  resolve(PROJECT_ROOT, 'src/scenes/ModeSelectScene.ts'),
+  resolve(PROJECT_ROOT, 'src/scenes/CharacterSelectScene.ts'),
+  resolve(PROJECT_ROOT, 'src/game/myFighters.ts'),
+  resolve(PROJECT_ROOT, 'src/game/stageConfig.ts')
+]);
 const SAVE_TARGETS = new Set([
   'assets/config/game-config.json',
   'assets/config/input-map.json',
@@ -52,6 +61,21 @@ function resolveSaveTarget(target: unknown): string | null {
 
 export default defineConfig({
   plugins: [
+    {
+      name: 'generate-game-meta',
+      async buildStart() {
+        await writeGameMeta(PROJECT_ROOT);
+      },
+      configureServer(server) {
+        void writeGameMeta(PROJECT_ROOT);
+
+        server.watcher.on('change', (filePath) => {
+          if (GAME_META_SOURCES.has(resolve(filePath))) {
+            void writeGameMeta(PROJECT_ROOT);
+          }
+        });
+      }
+    },
     {
       name: 'starter-debug-json-writer',
       configureServer(server) {
